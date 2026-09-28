@@ -1,0 +1,26 @@
+{
+	"name": "tenjin-schema",
+	"version": "1.0.0",
+	"description": "Declarative data formats for the Tenjin game engine",
+	"engines": {
+		"node": ">=26"
+	},
+	"packageManager": "pnpm@11.22.0",
+	"sideEffects": false,
+	"type": "module",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test test/*.test.ts"
+	},
+	"files": [
+		"src",
+		"README.md"
+	],
+	"exports": {
+		"./*": "./src/*.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^24.13.3",
+		"typescript": "^6.0.2"
+	}
+}
