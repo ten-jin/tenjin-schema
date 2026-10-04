@@ -103,3 +103,5 @@ Effects can describe costs, selections, conditions, and instructions. Use the fi
 ## Updating
 
 Games/modes/decks may include an optional `sourceUrl`: an absolute URL so users can obtain an updated definition.
+
+Type filters use `CardTypeFilter`: `cardTypes: ['unit', 'gear']` means unit OR gear; `cardTypes: [['unit', 'bird'], 'gear']` means (unit AND bird) OR gear. Queries, captured history subject filters, compact event-count conditions and play destinations use this same shape. `cardTypeFilters` exports matching, type discovery and intersection helpers; consumers must evaluate nested groups together rather than flattening them for matching.

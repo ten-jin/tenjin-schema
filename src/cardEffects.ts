@@ -2,6 +2,7 @@ import type { CardEffectVocabulary } from './cardEffectVocabulary.ts'
 import { isSiteLocation } from './cardLocations.ts'
 import type { CardLocation, CardData, CardEffectData, CardConditional, EffectCostDefinition, EffectCostContainer, EffectDefinition, EffectInstance, EffectSelection, ExportedCardData, CardModifier, CardSetQuery, CardSetRequirement } from './cardEffectTypes.ts'
 import { type RecordValue, type Validator, type Check, type FieldValidators, record, number, count, string, boolean, trueValue, object, invalid, required, validate, strings, oneOf, only, values, pathSegments, array, literal, stringRecord } from './primitives.ts'
+const typeFilter = array(value => Array.isArray(value) ? strings(value) && (value.length > 0 || invalid('non-empty type intersection')) : string(value))
 export function createCardEffectValidators<const V extends CardEffectVocabulary>(vocabulary: V) {
 	const CARD_STATS = new Set(vocabulary.CARD_STATS)
 	const ACTION_WINDOWS = new Set(vocabulary.ACTION_WINDOWS)
@@ -71,11 +72,10 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 			return false
 		queryValidators ??= object<CardSetQuery<V>>({
 			source: isSource, exclude: isCardReference,
-			cardTypes: strings,
+			cardTypes: typeFilter,
 			names: strings,
 			named: literal('cardName', 'type', 'tag'),
 			colors: strings,
-			allCardTypes: strings,
 			excludeCardTypes: strings,
 			players: playerTarget,
 			conditional: array(isConditional),
@@ -370,7 +370,7 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 	const validateCopySelection = object({ source: isSingleCardReference, targets: isCardReference, duration: literal('attached') }, ['source', 'targets'])
 	const validateCopyPlay = object({ mode: literal('copy'), subject: isSingleCardReference, copies: count }, ['mode', 'subject', 'copies'])
 	const validateReplay = object({ mode: literal('replay'), subject: isSingleCardReference, costs: isCostContainer, sourceArea: locationArea }, ['mode', 'subject'])
-	const validatePlayDestination = object({ area: locationArea, cardTypes: strings, allCardTypes: strings }, ['area'])
+	const validatePlayDestination = object({ area: locationArea, cardTypes: typeFilter }, ['area'])
 	const validatePlay = object({ subject: isCardReference, reduceMana: amount, reduceManaRecycle: amount, controller: literal('owner'), destination: item => locationArea(item) || item === 'lastLocation' || record(item) && validatePlayDestination(item) }, ['subject'])
 	const costFields = { type: costType, minimumCost: number, matching: strings, conditional: array(isConditional), query: isQuery, multiplier: (value: unknown) => number(value) || literal('cardsInDiscard', 'played', 'holds')(value) }
 	const validateCost = object({ ...costFields, amount: costAmount }, ['type'])

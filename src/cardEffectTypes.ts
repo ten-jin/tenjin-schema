@@ -176,6 +176,8 @@ export type CostType<V extends CardEffectVocabulary = DefaultVocabulary> = V['CO
 export type CostOptionality = 'optional' | 'replaces'
 export type LocationArea<V extends CardEffectVocabulary = DefaultVocabulary> = V['LOCATION_AREAS'][number]
 export type CardType<V extends CardEffectVocabulary = DefaultVocabulary> = V['CARD_TYPES'][number]
+/** Outer alternatives are OR; each nested list requires all of its types (AND). */
+export type CardTypeFilter<V extends CardEffectVocabulary = DefaultVocabulary> = Array<CardType<V> | string | Array<CardType<V> | string>>
 export type EffectDuration = 'combat' | 'turn' | undefined
 export type NamingType = 'cardName' | 'type' | 'tag'
 export interface Naming<V extends CardEffectVocabulary = DefaultVocabulary> {
@@ -249,11 +251,10 @@ export interface CardSetQuery<V extends CardEffectVocabulary = DefaultVocabulary
 	exclude?: EffectCardReference<V>
 	excludeLocation?: LocationArea<V> | EffectLocationReference<V>
 	source?: CardSetSource<V>
-	cardTypes?: (CardType<V> | string)[]
+	cardTypes?: CardTypeFilter<V>
 	names?: string[]
 	named?: NamingType
 	colors?: string[]
-	allCardTypes?: (CardType<V> | string)[]
 	excludeCardTypes?: (CardType<V> | string)[]
 	/** Filters candidate controllers independently of where candidates come from. */
 	players?: PlayerTarget<V>
@@ -341,8 +342,7 @@ export type EffectPlay<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	controller?: 'owner'
 	destination?: LocationArea<V> | 'lastLocation' | {
 		area: LocationArea<V>
-		cardTypes?: string[]
-		allCardTypes?: string[]
+		cardTypes?: CardTypeFilter<V>
 	}
 } | {
 	subject: EffectSingleCardReference<V>
