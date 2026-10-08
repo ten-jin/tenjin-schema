@@ -1,4 +1,4 @@
-import type { CardEffectVocabulary, DefaultVocabulary, CARD_RELATION_TYPES, CARDS_IN_TRASH, INFINITY_COST, EACH_OPPONENT_LOCATION } from './cardEffectVocabulary.ts'
+import type { CardEffectVocabulary, DefaultVocabulary, INFINITY_COST, EACH_OPPONENT_LOCATION } from './cardEffectVocabulary.ts'
 // Serialized card/effect output contract. No game engine or application dependencies.
 export type TurnStepState<V extends CardEffectVocabulary = DefaultVocabulary> = V['TURN_STEPS'][number]
 export type CostSourceType = 'cardPlay' | 'activatedAbility' | 'effect'
@@ -22,18 +22,18 @@ export interface PlayToRule<V extends CardEffectVocabulary = DefaultVocabulary> 
 export interface MoveToRule<V extends CardEffectVocabulary = DefaultVocabulary> extends PlayToRule<V> {
 	from?: 'anywhere'
 	costs?: EffectCostContainer<V>
-	costMultiplier?: 'perUnitBeyondFirst'
 }
 export type EffectUsage = 'oncePerTurn'
 export type CombatRole = 'attacking' | 'defending'
 export interface EffectConditions<V extends CardEffectVocabulary = DefaultVocabulary> {
-	initiatingPlayer?: PlayerTarget<V>
+	/** Current turn phase, independent of the checked card's last event phase. */
+	phase?: TurnStepState<V>
+	initiatingPlayer?: EffectPlayerReference<V>
 	turnPlayer?: PlayerTarget<V>
 	sourceArea?: LocationArea<V>
 	targetQuery?: CardSetQuery<V>
 	targetFromArea?: LocationArea<V>
 	targetNotFromArea?: LocationArea<V>
-	conqueredUncontrolled?: boolean
 	costSource?: CostSourceType
 	combatRole?: CombatRole
 	eventSourceQuery?: CardSetQuery<V>
@@ -43,6 +43,8 @@ export interface EffectConditions<V extends CardEffectVocabulary = DefaultVocabu
 }
 export interface EffectPolicy<V extends CardEffectVocabulary = DefaultVocabulary> {
 	activationScope?: 'sameLocation'
+	/** Who may activate this ability; defaults to its controller. */
+	activationPlayers?: 'controller' | 'turnPlayer' | 'all'
 	taps?: boolean
 	actionWindows?: ActionWindow<V>[]
 	costs?: EffectCostContainer<V>[]
@@ -56,6 +58,11 @@ export interface EffectPolicy<V extends CardEffectVocabulary = DefaultVocabulary
 	eventMultiplicity?: 'perObject' | 'perBatch'
 	attachedThisTurn?: boolean
 	consumes?: boolean
+	/** Temporary registered trigger lifetime and bounded uses. */
+	duration?: EffectDuration
+	remainingUses?: number
+	usagePerPlayer?: true
+	minimumEventAmount?: number
 }
 export interface EffectDefinition<V extends CardEffectVocabulary = DefaultVocabulary, Effect = EffectInstance<V>> extends EffectConditions<V>, EffectPolicy<V> {
 	captureTargets?: true
@@ -100,7 +107,8 @@ export interface ExportedCardData<V extends CardEffectVocabulary = DefaultVocabu
 	manaRecycle: number
 	colors: string[]
 }
-export interface CardEffectData<V extends CardEffectVocabulary = DefaultVocabulary, Effect = EffectInstance<V>> {
+/** Reusable behavior carried by a card or granted to another card. */
+export interface AbilitySet<V extends CardEffectVocabulary = DefaultVocabulary, Effect = EffectInstance<V>> {
 	effects?: EffectDefinitionsByKey<V, Effect>
 	playModifiers?: CardModifier<V>[]
 	repeatCosts?: EffectCostContainer<V>[]
@@ -108,13 +116,24 @@ export interface CardEffectData<V extends CardEffectVocabulary = DefaultVocabula
 	buffLimit?: number | null
 	enhancementLimit?: number
 	canFacedown?: boolean
-	copyTextToAttached?: boolean
-	activatableEffects?: 'allFriendly' | EffectActionDefinition<V, Effect>[]
+	activatableEffects?: EffectActionDefinition<V, Effect>[]
 	additionalCosts?: EffectCostContainer<V>[]
 	costEffect?: Effect
 }
+export interface CardEffectData<V extends CardEffectVocabulary = DefaultVocabulary, Effect = EffectInstance<V>> extends AbilitySet<V, Effect> {
+	/** Named pools chosen from card definitions before play, owned by the declaring player. */
+	setupChoices?: Record<string, { query: CardSetQuery<V>; count: number; distinctNames?: true; excludeStarting?: true; ifInDeck?: CardSetQuery<V> }>
+}
+export type EffectPlayerReference<V extends CardEffectVocabulary = DefaultVocabulary> = PlayerTarget<V> | { ownerOf: EffectSingleCardReference<V> } | { controllerOf: EffectSingleCardReference<V> }
+/** Inline behavior or a live view of queried cards' behavior; filtering never checks activation availability. */
+export type AbilityGrant<V extends CardEffectVocabulary = DefaultVocabulary> = ((AbilitySet<V> & { copyFrom?: never; fields?: never; filter?: never }) | ({
+	copyFrom: CardSetQuery<V>
+	fields?: (keyof AbilitySet<V>)[]
+	filter?: { taps?: boolean }
+} & Partial<Record<keyof AbilitySet<V>, never>>)) & { duration?: EffectDuration }
 export type ActionWindow<V extends CardEffectVocabulary = DefaultVocabulary> = V['ACTION_WINDOWS'][number]
-export type PlayPermissionCharacteristic = 'flashback'
+/** Opaque permission tag interpreted by the consuming engine. */
+export type PlayPermissionCharacteristic = string
 export interface PlayPermission<V extends CardEffectVocabulary = DefaultVocabulary> {
 	from: CardLocation<V>
 	cost: 'normal' | EffectCost<V>[]
@@ -124,28 +143,32 @@ export interface PlayPermission<V extends CardEffectVocabulary = DefaultVocabula
 export type CardModifierType<V extends CardEffectVocabulary = DefaultVocabulary> = V['MODIFIER_TYPES'][number]
 export type AbilityProcedure = 'costPayment' | 'combatDamageAssignment'
 export type CompareOperator = '<' | '<=' | '=' | '!=' | '>=' | '>'
-export type CardConditionalCompareValue<V extends CardEffectVocabulary = DefaultVocabulary> = AmountExpression<V> | {
-	type: 'cardCount'
-	query: CardSetQuery<V>
-}
 export interface CardConditionalCompare<V extends CardEffectVocabulary = DefaultVocabulary> {
 	operator?: CompareOperator
-	value: CardConditionalCompareValue<V>
+	value: AmountExpression<V>
 }
-type NumericPlayerTurnConditionalType = 'burned' | 'discarded' | 'killed' | 'spentMana' | 'spentManaRecycle' | 'drawn' | 'holds' | 'conquers' | 'excessDamage' | 'winCombat' | 'xpGained' | 'chosenEnemyUnits' | 'chosenEnemyUnitsOrGearWithSpellsOrUnitAbilities'
 export type CardConditionalType<V extends CardEffectVocabulary = DefaultVocabulary> = V['CONDITIONAL_TYPES'][number]
-export interface CardConditional<V extends CardEffectVocabulary = DefaultVocabulary> {
-	type: CardConditionalType<V>
+interface CardConditionalFields<V extends CardEffectVocabulary = DefaultVocabulary> {
 	min?: AmountExpression<V>
 	max?: AmountExpression<V>
 	compare?: CardConditionalCompare<V> | CardConditionalCompare<V>[]
 	unlessPaidAdditionalCost?: boolean
 	not?: boolean
-	cardType?: CardType<V> | string
 	eventPhase?: TurnStepState<V>
-	costs?: EffectCostContainer<V>
-	query?: CardSetQuery<V>
 }
+/** Event counts expose occurrence filters directly; numeric amounts remain available for composition. */
+export type EventCountConditionFields<V extends CardEffectVocabulary = DefaultVocabulary> = Omit<EventQuery<V>, 'subject'> & EventSubjectFilter<V> & {
+	event: V['HISTORY_EVENTS'][number]
+	/** Current turn by default. */
+	window?: 'turn'
+}
+/** Numeric and event conditions share bounds, inversion and payment bypass. */
+export type CardConditional<V extends CardEffectVocabulary = DefaultVocabulary> = CardConditionalFields<V> & (
+	{ type: Exclude<CardConditionalType<V>, 'amount' | 'eventCount' | 'all' | 'any'>; amount?: never }
+	| { type: Extract<CardConditionalType<V>, 'amount'>; amount: AmountExpression<V> }
+	| ({ type: Extract<CardConditionalType<V>, 'eventCount'>; amount?: never } & EventCountConditionFields<V>)
+	| { type: Extract<CardConditionalType<V>, 'all' | 'any'>; conditional: CardConditional<V>[]; amount?: never; min?: never; max?: never; compare?: never }
+)
 export interface CardModifier<V extends CardEffectVocabulary = DefaultVocabulary> {
 	type: CardModifierType<V>
 	/** Runtime ordering metadata; generated card definitions leave this unset. */
@@ -156,10 +179,10 @@ export interface CardModifier<V extends CardEffectVocabulary = DefaultVocabulary
 	consumes?: boolean
 	didConsume?: boolean
 	costs?: EffectCostContainer<V>
-	amountMultiplier?: CardSetQuery<V>
 	conditional?: CardConditional<V>[]
 	requiresCards?: CardSetRequirement<V> | CardSetRequirement<V>[]
-	minimum1?: boolean
+	/** Floor on the resulting numeric stat, distinct from a calculation's amount clamp. */
+	minimum?: number
 	ifNotAlready?: boolean
 	reducesCombatAssignment?: boolean
 	replacementEffects?: ('stun' | 'negativeStrength' | 'returnToHand')[]
@@ -170,6 +193,8 @@ export interface CardModifier<V extends CardEffectVocabulary = DefaultVocabulary
 	replaceID?: string
 	sourceCardID?: string
 	playPermission?: PlayPermission<V>
+	/** String payload interpreted by the modifier kind; adds one type or action window. */
+	value?: string
 }
 export type PlayerTarget<V extends CardEffectVocabulary = DefaultVocabulary> = V['PLAYER_TARGETS'][number]
 export type CostType<V extends CardEffectVocabulary = DefaultVocabulary> = V['COST_TYPES'][number]
@@ -178,30 +203,84 @@ export type LocationArea<V extends CardEffectVocabulary = DefaultVocabulary> = V
 export type CardType<V extends CardEffectVocabulary = DefaultVocabulary> = V['CARD_TYPES'][number]
 /** Outer alternatives are OR; each nested list requires all of its types (AND). */
 export type CardTypeFilter<V extends CardEffectVocabulary = DefaultVocabulary> = Array<CardType<V> | string | Array<CardType<V> | string>>
-export type EffectDuration = 'combat' | 'turn' | undefined
+export type EffectDuration = 'combat' | 'turn' | 'source' | 'nextEnding' | undefined
 export type NamingType = 'cardName' | 'type' | 'tag'
 export interface Naming<V extends CardEffectVocabulary = DefaultVocabulary> {
 	type: NamingType
 	cardTypes?: (CardType<V> | string)[]
 }
-export type CardRelationType = (typeof CARD_RELATION_TYPES)[number]
-export type CardRelations<V extends CardEffectVocabulary = DefaultVocabulary> = Partial<Record<CardRelationType, CardSetRequirement<V> | CardSetRequirement<V>[]>>
+export type CardRelationType<V extends CardEffectVocabulary = DefaultVocabulary> = V['CARD_RELATION_TYPES'][number]
+export type CardRelations<V extends CardEffectVocabulary = DefaultVocabulary> = Partial<Record<CardRelationType<V>, CardSetRequirement<V> | CardSetRequirement<V>[]>>
 export interface CardStatAmount<V extends CardEffectVocabulary = DefaultVocabulary> {
 	stat: V['CARD_STATS'][number]
 	card: EffectSingleCardReference<V>
 	previous?: true
-	offset?: number
 }
-export type CoreAmountReference<V extends CardEffectVocabulary = DefaultVocabulary> = V['CORE_AMOUNTS'][number] | CardStatAmount<V>
-export type DamageAmountReference<V extends CardEffectVocabulary = DefaultVocabulary> = V['DAMAGE_AMOUNTS'][number] | CardStatAmount<V>
+/** Match recorded subject metadata; only type filtering may explicitly read the current card. */
+export interface EventSubjectFilter<V extends CardEffectVocabulary = DefaultVocabulary> {
+	cardTypes?: CardTypeFilter<V>
+	excludeCardTypes?: (CardType<V> | string)[]
+	exclude?: EffectCardReference<V>
+	typesFrom?: 'current'
+	isAtSite?: boolean
+}
+/** Select recorded occurrences independently of today's card zones and controllers. */
+export interface EventQuery<V extends CardEffectVocabulary = DefaultVocabulary> {
+	/** Defaults to the checked card's controller ({ controllerOf: 'recipient' }). */
+	player?: EffectPlayerReference<V>
+	/** Relationship to the referenced player, defaulting to self. */
+	relation?: PlayerTarget<V>
+	/** Match the event's actor by default; deaths may explicitly match subjectController. */
+	role?: 'actor' | 'subjectController'
+	subject?: EventSubjectFilter<V>
+	phase?: TurnStepState<V>
+	/** Completed occurrences by default; initiated includes pending and completed attempts once each. */
+	stage?: 'initiated'
+	paidCosts?: EffectCostContainer<V>
+}
+export interface CardEventCount<V extends CardEffectVocabulary = DefaultVocabulary> {
+	event: V['HISTORY_EVENTS'][number]
+	card: EffectSingleCardReference<V>
+	role: 'source' | 'subject'
+	window: 'turn'
+	/** Restrict history to the referenced card's current game object, after its latest identity reset. */
+	currentObject?: true
+	query?: never
+}
+export interface QueryEventCount<V extends CardEffectVocabulary = DefaultVocabulary> {
+	event: V['HISTORY_EVENTS'][number]
+	query: EventQuery<V>
+	window: 'turn'
+	card?: never
+	role?: never
+	currentObject?: never
+}
+/** Count either occurrences involving a physical card or occurrences matching recorded metadata. */
+export type EventCount<V extends CardEffectVocabulary = DefaultVocabulary> = CardEventCount<V> | QueryEventCount<V>
+/** Current player state or a numeric total in the current turn, including another player's turn. */
+export type PlayerStatAmount<V extends CardEffectVocabulary = DefaultVocabulary> = {
+	player: EffectPlayerReference<V>
+} & (
+	{ stat: V['PLAYER_STATS'][number]; window?: never }
+	| { stat: V['PLAYER_TURN_STATS'][number]; window: 'turn' }
+)
+export type DynamicAmount<V extends CardEffectVocabulary = DefaultVocabulary> =
+	| CardStatAmount<V>
+	| { payment: { cost: CostType<V>; group?: string } }
+	| { count: EffectCardReference<V> | { query: CardSetQuery<V>; distinctTypes?: (CardType<V> | string)[]; card?: EffectSingleCardReference<V> } | EventCount<V> }
+	| { aggregate: { operation: 'min' | 'max' | 'sum'; stat: V['CARD_STATS'][number]; query: CardSetQuery<V> } }
+	| { playerStat: PlayerStatAmount<V> }
+	| { gameStat: { stat: V['GAME_STATS'][number] } }
+	| { calculation: AmountCalculation<V> }
+export type CoreAmountReference<V extends CardEffectVocabulary = DefaultVocabulary> = V['CORE_AMOUNTS'][number] | DynamicAmount<V>
+export type DamageAmountReference<V extends CardEffectVocabulary = DefaultVocabulary> = V['DAMAGE_AMOUNTS'][number] | DynamicAmount<V>
 export type AmountReference<V extends CardEffectVocabulary = DefaultVocabulary> = CoreAmountReference<V> | DamageAmountReference<V> | typeof EACH_OPPONENT_LOCATION
 export type AmountExpression<V extends CardEffectVocabulary = DefaultVocabulary, Reference extends AmountReference<V> = CoreAmountReference<V>> = number | Reference
 export type CountExpression<V extends CardEffectVocabulary = DefaultVocabulary> = AmountExpression<V>
 export type CostAmountExpression<V extends CardEffectVocabulary = DefaultVocabulary> = AmountExpression<V> | typeof INFINITY_COST
-export type CostMultiplier = number | typeof CARDS_IN_TRASH | 'played' | 'holds'
+export type CostMultiplier<V extends CardEffectVocabulary = DefaultVocabulary> = AmountExpression<V>
 export type DamageAmountExpression<V extends CardEffectVocabulary = DefaultVocabulary> = AmountExpression<V, DamageAmountReference<V>>
-export type DrawManaAmountExpression = number | typeof INFINITY_COST
-export type SpawnCountExpression = number | typeof EACH_OPPONENT_LOCATION
+export type SpawnCountExpression<V extends CardEffectVocabulary = DefaultVocabulary> = CountExpression<V> | typeof EACH_OPPONENT_LOCATION
 export interface EffectCostDefinition<V extends CardEffectVocabulary = DefaultVocabulary> {
 	type: CostType<V>
 	minimumCost?: number
@@ -211,7 +290,7 @@ export interface EffectCostDefinition<V extends CardEffectVocabulary = DefaultVo
 }
 export interface EffectCost<V extends CardEffectVocabulary = DefaultVocabulary> extends EffectCostDefinition<V> {
 	amount?: CostAmountExpression<V>
-	multiplier?: CostMultiplier
+	multiplier?: CostMultiplier<V>
 }
 export interface EffectCostContainer<V extends CardEffectVocabulary = DefaultVocabulary, Cost extends EffectCostDefinition<V> = EffectCost<V>> {
 	costs: Cost[]
@@ -219,8 +298,8 @@ export interface EffectCostContainer<V extends CardEffectVocabulary = DefaultVoc
 	kind?: 'payment'
 	cardTypes?: (CardType<V> | string)[]
 	conditionals?: CardConditional<V>[]
-	onlyDuringShowdown?: true
-	amountMultiplier?: CardSetQuery<V>
+	/** Restrict payment to a configured current turn phase. */
+	phase?: TurnStepState<V>
 	groupNames?: string[]
 	playPermissionCharacteristics?: PlayPermissionCharacteristic[]
 	chooseOne?: true
@@ -263,7 +342,6 @@ export interface CardSetQuery<V extends CardEffectVocabulary = DefaultVocabulary
 	includeSites?: true
 	chosen?: true
 	siteControl?: true
-	uniqueCardTypes?: (CardType<V> | string)[]
 	includeSource?: true
 	hasModifier?: CardModifierType<V>
 	requiredActionWindow?: ActionWindow<V>
@@ -271,20 +349,21 @@ export interface CardSetQuery<V extends CardEffectVocabulary = DefaultVocabulary
 	isFacedown?: true
 	siteController?: 'selected' | 'open' | 'opponent' | 'self'
 }
-export interface EffectAmountMultiplier<V extends CardEffectVocabulary = DefaultVocabulary> {
-	query: CardSetQuery<V>
-	base?: number
-}
 export type EffectSelectionTiming = 'target' | 'privateChoice' | 'resolutionChoice' | 'programmatic'
-export interface CardSetRequirement<V extends CardEffectVocabulary = DefaultVocabulary> {
+/** Bounds on matching instances, or an explicitly computed count. */
+export type CardSetRequirement<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	min?: number
 	max?: number
-	query: CardSetQuery<V>
-}
+} & ({ query: CardSetQuery<V>; count?: never } | { count: CountExpression<V>; query?: never })
 export type RepeatPlayerRef = 'startFromMe' | 'startFromNext' | 'opponents' | 'others'
-/** A scalar input: named card or selected entry; cost selections require an index to distinguish a card from the whole payment set. */
+/** A scalar input: named card or selected entry; cost/setup selections require an index to distinguish a card from the whole set. */
 export type EffectSingleCardReference<V extends CardEffectVocabulary = DefaultVocabulary> = 'effectSource' | 'affectingCard' | 'eventSubject' | 'effectTarget' | 'recipient' | {
+	from: 'setupChoice'
+	key: string
+	index: number
+} | {
 	from: 'selection' | 'previousSelection'
+	/** Array.at index: negative indexes count backward from the end. */
 	index?: number
 	cardType?: CardType<V>
 } | {
@@ -294,6 +373,10 @@ export type EffectSingleCardReference<V extends CardEffectVocabulary = DefaultVo
 	cardType?: CardType<V>
 }
 export type EffectCardSetReference<V extends CardEffectVocabulary = DefaultVocabulary> = EffectSingleCardReference<V> | 'affected' | 'selection' | 'previousSelection' | {
+	from: 'setupChoice'
+	key: string
+	index?: undefined
+} | {
 	from: 'costSelection'
 	cost: CostType<V>
 	index?: undefined
@@ -307,7 +390,7 @@ export interface EffectRouting<V extends CardEffectVocabulary = DefaultVocabular
 	instructions?: Partial<Record<EffectInstructionKind<V>, EffectCardReference<V>>>
 	affectingCard?: 'eventSubject'
 	subject?: EffectCardReference<V>
-	resolvingPlayer?: 'selectedOwner' | 'self' | 'opponent'
+	resolvingPlayer?: 'eventController' | 'selectedOwner' | 'self' | 'opponent'
 	repeatFor?: RepeatPlayerRef
 }
 export interface EffectSequence<V extends CardEffectVocabulary = DefaultVocabulary> {
@@ -321,12 +404,20 @@ export interface EffectFlow<V extends CardEffectVocabulary = DefaultVocabulary> 
 		failure?: EffectInstance<V>
 	}
 	unless?: EffectInstance<V>
-	repeat?: number
+	repeat?: CountExpression<V>
+	forEach?: { cards: EffectCardReference<V>; order: 'chosen'; effect: EffectInstance<V> }
 }
 export type EffectChoice<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	timing?: 'target' | 'resolutionChoice'
 	mode: 'effect'
 	options: EffectInstance<V>[]
+	/** Maximum number of choices; omitted count defaults to one. */
+	count?: number
+	/** Minimum number of choices; omitted minimum requires the full count. */
+	min?: number
+	distinct?: true
+	/** Each option has its own usage history within this choice. */
+	usage?: EffectUsage
 } | {
 	mode: 'revealed'
 	options: {
@@ -334,12 +425,18 @@ export type EffectChoice<V extends CardEffectVocabulary = DefaultVocabulary> = {
 		effect: EffectInstance<V>
 	}[]
 }
+/** Policy for normal card-play costs; additional costs retain their ordinary rules. */
+export type EffectPlayPayment<V extends CardEffectVocabulary = DefaultVocabulary> = boolean | {
+	waive?: CostType<V>[]
+	costReduction?: EffectCost<V>[]
+}
 export type EffectPlay<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	subject: EffectCardReference<V>
 	mode?: undefined
-	reduceMana?: AmountExpression<V>
-	reduceManaRecycle?: AmountExpression<V>
+	/** Omitted or false waives normal costs; true pays them. */
+	payment?: EffectPlayPayment<V>
 	controller?: 'owner'
+	destinations?: (LocationArea<V> | 'lastLocation')[]
 	destination?: LocationArea<V> | 'lastLocation' | {
 		area: LocationArea<V>
 		cardTypes?: CardTypeFilter<V>
@@ -352,7 +449,7 @@ export type EffectPlay<V extends CardEffectVocabulary = DefaultVocabulary> = {
 } | {
 	subject: EffectSingleCardReference<V>
 	mode: 'copy'
-	copies: number
+	copies: CountExpression<V>
 }
 export interface EffectZoneChangeSource<V extends CardEffectVocabulary = DefaultVocabulary> {
 	query: CardSetQuery<V>
@@ -372,6 +469,13 @@ export type EffectZoneChange<V extends CardEffectVocabulary = DefaultVocabulary>
 	timing?: never
 	source?: EffectZoneChangeSource<V>
 } | {
+	to: 'hand'
+	/** Drawing a specified inspected card retains draw events. */
+	event: 'draw'
+	placement?: never
+	timing?: never
+	source?: EffectZoneChangeSource<V>
+} | {
 	to: 'discard'
 	event: 'discard'
 	placement?: never
@@ -384,14 +488,11 @@ export type EffectZoneChange<V extends CardEffectVocabulary = DefaultVocabulary>
 	timing?: 'before'
 	source: EffectZoneChangeSource<V>
 }
-export type EffectModifierValue<V extends CardEffectVocabulary = DefaultVocabulary> = {
-	stat: 'strength'
-	card: EffectSingleCardReference<V>
-}
-export interface EffectModifierCalculation<V extends CardEffectVocabulary = DefaultVocabulary> {
-	operation: 'subtract'
-	left: EffectModifierValue<V>
-	right: EffectModifierValue<V>
+/** Arithmetic shared by all amount consumers; minimum clamps the result. */
+export interface AmountCalculation<V extends CardEffectVocabulary = DefaultVocabulary> {
+	operation: 'add' | 'subtract' | 'multiply'
+	left: AmountExpression<V, CoreAmountReference<V> | DamageAmountReference<V>>
+	right: AmountExpression<V, CoreAmountReference<V> | DamageAmountReference<V>>
 	minimum?: number
 }
 interface EffectModifierBase<V extends CardEffectVocabulary = DefaultVocabulary> extends Omit<CardModifier<V>, 'amount'> {
@@ -399,19 +500,13 @@ interface EffectModifierBase<V extends CardEffectVocabulary = DefaultVocabulary>
 	scope?: 'players'
 	subject?: EffectCardReference<V>
 }
-/** Exactly one value source: literal/default, calculation, or a copied modifier. */
+/** A literal/default value or amount expression, or a copied modifier value. */
 export type EffectModifier<V extends CardEffectVocabulary = DefaultVocabulary> = EffectModifierBase<V> & ({
 	amount?: AmountExpression<V>
-	calculation?: never
-	copyFrom?: never
-} | {
-	calculation: EffectModifierCalculation<V>
-	amount?: never
 	copyFrom?: never
 } | {
 	copyFrom: EffectSingleCardReference<V>
 	amount?: never
-	calculation?: never
 })
 export interface EffectKillOptions {
 	canSave?: false
@@ -424,13 +519,14 @@ export interface EffectAttachment<V extends CardEffectVocabulary = DefaultVocabu
 }
 export interface EffectMoves<V extends CardEffectVocabulary = DefaultVocabulary> {
 	type?: 'recall' | 'swap'
+	/** Ordinary move destination; recall always uses the card's current player's base. */
 	to?: LocationArea<V> | EffectLocationReference<V>
 	payCosts?: true
 	onFailure?: 'killTarget'
 }
-export interface EffectReadies {
+export interface EffectReadies<V extends CardEffectVocabulary = DefaultVocabulary> {
 	action: 'ready' | 'exhaust' | 'toggle'
-	amount?: number
+	amount?: CountExpression<V>
 }
 export type LocationRelation = 'same' | 'different'
 export interface EffectSelection<V extends CardEffectVocabulary = DefaultVocabulary> {
@@ -449,10 +545,17 @@ export interface EffectSelection<V extends CardEffectVocabulary = DefaultVocabul
 	cardTypeAreas?: Record<string, LocationArea<V>>
 	costsThreshold?: EffectCostContainer<V>
 	allowsFacedown?: true
-	counts?: true
 }
 export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabulary> {
+	/** Keep this effect's modifier bundle on one recipient per source instance and effect identity. A new recipient replaces the previous bundle. */
+	singleRecipient?: true
 	endTurn?: true
+	/** Replace the pending token play rather than add an extra token. */
+	replacePlay?: true
+	/** Create distinct card instances from selected definitions without moving those definitions. */
+	createCards?: { from: EffectCardReference<V>; to: CardLocation<V>; duration?: 'source' }
+	/** Add inline or copied behavior evaluated from each receiving card, with provider provenance and an independent lifetime. */
+	grantAbilities?: AbilityGrant<V>
 	requirements?: {
 		additionalCostPaid?: true
 		phase?: TurnStepState<V>
@@ -474,8 +577,9 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 	naming?: Naming<V>
 	cantBeChosen?: CardSetQuery<V>
 	register?: Partial<Record<EffectsKey<V>, EffectActionDefinition<V>[]>>
+	/** Grant modifiers before payment; spend one use when a matching play finalizes. */
+	modifierGrant?: { query: CardSetQuery<V>; modifiers: CardModifier<V>[]; playTo?: PlayToRule<V>[]; onPlayed?: EffectInstance<V>; uses: number; consumeOn: 'finalized'; duration: 'turn' }
 	play?: EffectPlay<V>
-	targetCostDiscount?: EffectCostContainer<V>
 	siteToken?: {
 		name: string
 		enter?: true
@@ -484,25 +588,26 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 	}
 	costs?: EffectCostContainer<V>
 	addResource?: EffectCostContainer<V>
-	addBuff?: number
+	addBuff?: AmountExpression<V>
 	drawMana?: {
-		amount: DrawManaAmountExpression
+		amount: CountExpression<V>
 		isReady?: true
 	}
-	gainXP?: number
+	gainXP?: CountExpression<V>
 	enhancement?: 'apply' | 'remove'
 	damage?: {
 		amount: DamageAmountExpression<V>
+		/** Allocate this total among selected recipients, applying the allocations simultaneously. */
+		distribution?: 'split'
 		reciprocal?: true
-		bonusPerSourceDamage?: number
 	}
-	draw?: number
+	draw?: CountExpression<V>
 	lookAtFacedown?: PlayerTarget<V>
 	kills?: true | EffectKillOptions
 	attaches?: true | EffectAttachment<V>
 	triggerRepeat?: {
 		key: EffectsKey<V>
-		amount: number
+		amount: CountExpression<V>
 	}
 	changeEffect?: {
 		type: 'redirect' | 'disable'
@@ -511,9 +616,8 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 	disablesEffect?: CardModifierType<V>
 	modifiers?: EffectModifier<V>[]
 	passiveModifiers?: CardModifier<V>[]
-	readies?: EffectReadies
-	amountMultiplier?: EffectAmountMultiplier<V>
-	preScry?: number
+	readies?: EffectReadies<V>
+	preScry?: CountExpression<V>
 	reveal?: {
 		target?: PlayerTarget<V>
 		deck: PlayerCardsLocation<V>
@@ -522,9 +626,7 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 		until?: CardType<V>
 	}
 	extraTurn?: true
-	banishes?: true | {
-		returnOnHolderHold?: true
-	}
+	banishes?: true
 	wins?: true
 	select?: EffectSelection<V>
 	zoneChanges?: EffectZoneChange<V>[]
@@ -539,16 +641,18 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 	control?: true | {
 		duration?: 'turn' | 'source'
 		returns?: true
+		/** Recall to the card's current player's base after control and any exhaust instruction. */
 		recalls?: true
 	}
 	activateEffect?: EffectsKey<V>
 	moves?: true | EffectMoves<V>
 	heals?: boolean
-	addPoints?: number
+	addPoints?: AmountExpression<V>
 	spawn?: {
 		name: string
-		to?: LocationArea<V>
-		count?: SpawnCountExpression
+		to?: LocationArea<V> | 'lastLocation'
+		baseStrength?: number
+		count?: SpawnCountExpression<V>
 		statuses?: ('ready' | 'temporary')[]
 	}
 	copySelection?: {
@@ -562,6 +666,8 @@ export interface CardRoles {
 	resource?: string
 	leader?: string
 	site?: string
+	/** Cards with this type are played only to sites by default. Not a deck role. */
+	siteOnly?: string
 }
 export type CardRole = keyof CardRoles
 export interface ConfigGameCards<V extends CardEffectVocabulary = DefaultVocabulary> {

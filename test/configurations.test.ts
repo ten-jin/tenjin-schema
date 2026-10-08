@@ -51,8 +51,8 @@ test('mode decks combine construction and draw rules', () => {
 
 test('resource classifications use game roles independently of modes', () => {
 	const selectedMode = { ...mode, manaDeck: { minimumSize: 0 } }
-	for (const types of [['leader','site'],['leader','rune'],['site','rune']]) {
-		const config = { ...game, cardRoles: { ...game.cardRoles, resource: 'rune' }, defaultMode: selectedMode, cards: [{ ...card, types }] }
+	for (const types of [['leader','site'],['leader','resource'],['site','resource']]) {
+		const config = { ...game, cardRoles: { ...game.cardRoles, resource: 'resource' }, defaultMode: selectedMode, cards: [{ ...card, types }] }
 		const result = validators.validateGameConfiguration(config)
 		assert.deepEqual(result, { ok: false, issues: [{ path: 'cards[0].types', expected: 'at most one deck role: leader, site, or resource' }] })
 		assert.equal(validateGameModeRules(config, selectedMode).ok, false)
@@ -61,13 +61,22 @@ test('resource classifications use game roles independently of modes', () => {
 
 test('card roles require single type names and cannot be duplicated in terminology', () => {
 	assert.equal(validators.isGameConfiguration({ ...game, cardRoles: { leader: 'commander', site: 'arena' } }), true)
-	for (const cardRoles of [{ leader: '', site: 'arena' }, { leader: ['commander'], site: 'arena' }, { leader: 'commander', site: ['arena'] }]) {
+	for (const cardRoles of [{ leader: '', site: 'arena' }, { leader: ['commander'], site: 'arena' }, { leader: 'commander', site: ['arena'] }, { siteOnly: '' }, { siteOnly: ['site-only'] }]) {
 		assert.equal(validators.isGameConfiguration({ ...game, cardRoles }), false)
 	}
-	for (const role of ['leader', 'site', 'resource']) {
+	for (const role of ['leader', 'site', 'resource', 'siteOnly']) {
 		const result = validators.validateGameConfiguration({ ...game, terminology: { [role]: role } })
 		assert.deepEqual(result, { ok: false, issues: [{ path: `terminology.${role}`, expected: 'role label defined only in cardRoles' }] })
 	}
+})
+
+test('site-play roles map arbitrary types independently of deck classification', () => {
+	for (const types of [['gear', 'site-only'], ['leader', 'site-only'], ['resource', 'site-only']]) {
+		const config = { ...game, cardRoles: { leader: 'leader', resource: 'resource', siteOnly: 'site-only' }, cards: [{ ...card, types }] }
+		assert.equal(validators.isGameConfiguration(config), true)
+		assert.equal(validateGameModeRules(config, mode).ok, true)
+	}
+	assert.equal(validators.isGameConfiguration({ ...game, cardRoles: { siteOnly: 'custom-site-tag' } }), true)
 })
 
 test('variant IDs may repeat for their owner but never resolve to different cards', () => {

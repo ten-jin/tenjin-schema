@@ -12,7 +12,7 @@ The declarative data formats used with the [Tenjin game engine](https://tenjin.c
   "banned": { "Overpower": "2026-09-27" },
   "colors": { "mainDeck": "#000000", "manaDeck": "#ffffff" },
   "terminology": {},
-  "cardRoles": { "leader": "commander", "site": "arena", "resource": "energy" },
+  "cardRoles": { "leader": "commander", "site": "arena", "resource": "mana", "siteOnly": "" },
   "rules": {
     "leaderColorIdentity": true,
     "openingCardTypes": ["unit"],
@@ -62,7 +62,7 @@ The declarative data formats used with the [Tenjin game engine](https://tenjin.c
 }
 ```
 
-Effects can describe costs, selections, conditions, and instructions. Use the field definitions in [cardEffectTypes.ts](src/cardEffectTypes.ts) and the supported values in [cardEffectVocabulary.ts](src/cardEffectVocabulary.ts) when authoring more complex abilities.
+See the [effect fields README](docs/effects/README.md) for costs, selections, conditions, instructions, and configurable vocabularies.
 
 ## Modes
 
@@ -103,5 +103,3 @@ Effects can describe costs, selections, conditions, and instructions. Use the fi
 ## Updating
 
 Games/modes/decks may include an optional `sourceUrl`: an absolute URL so users can obtain an updated definition.
-
-Type filters use `CardTypeFilter`: `cardTypes: ['unit', 'gear']` means unit OR gear; `cardTypes: [['unit', 'bird'], 'gear']` means (unit AND bird) OR gear. Queries, captured history subject filters, compact event-count conditions and play destinations use this same shape. `cardTypeFilters` exports matching, type discovery and intersection helpers; consumers must evaluate nested groups together rather than flattening them for matching.

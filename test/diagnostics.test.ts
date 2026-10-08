@@ -49,10 +49,10 @@ test('choice, event, reference and relation arrays retain every path segment', (
 		[{ choice: { mode: 'effect', options: [{ draw: 0 }, false] } }, 'choice.options[1]'],
 		[{ choice: { mode: 'revealed', options: [{ match: 'A', effect: { draw: -1 } }] } }, 'choice.options[0].effect.draw'],
 		[{ register: { played: [false] } }, 'register.played[0]'],
-		[{ routing: { subject: ['effectSource', { from: 'selection', index: -1 }] } }, 'routing.subject[1].index'],
+		[{ routing: { subject: ['effectSource', { from: 'selection', index: -0.5 }] } }, 'routing.subject[1].index'],
 		[{ targetQuery: { relations: { attachedTo: [{ query: {}, min: -1 }] } } }, 'targetQuery.relations.attachedTo[0].min'],
-		[{ modifiers: [{ type: 'strength', calculation: { operation: 'subtract', left: { stat: 'strength', card: { from: 'selection', index: -1 } }, right: { stat: 'strength', card: 'effectSource' } } }] }, 'modifiers[0].calculation.left.card.index'],
-		[{ moves: { to: { card: { from: 'selection', index: -1 } } } }, 'moves.to.card.index'],
+		[{ modifiers: [{ type: 'strength', amount: { calculation: { operation: 'subtract', left: { stat: 'strength', card: { from: 'selection', index: -0.5 } }, right: { stat: 'strength', card: 'effectSource' } } } }] }, 'modifiers[0].amount.calculation.left.card.index'],
+		[{ moves: { to: { card: { from: 'selection', index: -0.5 } } } }, 'moves.to.card.index'],
 	]
 	for (const [value, path] of cases) {
 		const result = validators.validateEffect(value)

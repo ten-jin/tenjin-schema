@@ -14,7 +14,8 @@
 	},
 	"files": [
 		"src",
-		"README.md"
+		"README.md",
+		"docs/effects/README.md"
 	],
 	"exports": {
 		"./*": "./src/*.ts"

@@ -35,10 +35,12 @@ test('query, event and destination validators accept only one level of type inte
 	const validators = createCardEffectValidators(cardEffectVocabulary)
 	for (const cardTypes of [['unit'], ['unit', 'gear'], [['unit', 'bird'], 'gear'], []]) {
 		assert.equal(validators.isQuery({ cardTypes }), true)
+		assert.equal(validators.isConditional({ type: 'eventCount', event: 'played', cardTypes }), true)
 		assert.equal(validators.isEffect({ play: { subject: 'selection', destination: { area: 'site', cardTypes } } }), true)
 	}
 	for (const cardTypes of [[[]], [[['unit']]], [1], [['unit', 1]]]) {
 		assert.equal(validators.isQuery({ cardTypes }), false)
+		assert.equal(validators.isConditional({ type: 'eventCount', event: 'played', cardTypes }), false)
 		assert.equal(validators.isEffect({ play: { subject: 'selection', destination: { area: 'site', cardTypes } } }), false)
 	}
 	assert.equal(validators.isQuery({ allCardTypes: ['unit'] }), false)

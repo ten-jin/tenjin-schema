@@ -74,8 +74,8 @@ export function createConfigurationValidators<const V extends CardEffectVocabula
 	const stringMap = stringRecord(string)
 	const game = object<ExportedGameCards<V>>({ sourceUrl,
 		hash: name, name, version: name, sets: dates, banned: dates,
-		cardRoles: object({ leader: name, site: name, resource: name }), rules,
-		terminology: value => stringMap(value) && record(value) && ['leader', 'site', 'resource'].every(key => !Object.hasOwn(value, key) || property(value, key, () => invalid('role label defined only in cardRoles'))),
+		cardRoles: object({ leader: name, site: name, resource: name, siteOnly: name }), rules,
+		terminology: value => stringMap(value) && record(value) && ['leader', 'site', 'resource', 'siteOnly'].every(key => !Object.hasOwn(value, key) || property(value, key, () => invalid('role label defined only in cardRoles'))),
 		colors: value => record(value) && required(value, ['mainDeck', 'manaDeck']) && stringMap(value),
 		layout: object({ compactCardHeight: string }), defaultMode: isModeConfiguration, defaultDecks: array(isDeckConfiguration),
 		cards: value => {
