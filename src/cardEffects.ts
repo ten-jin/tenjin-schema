@@ -371,7 +371,7 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 		source: item => record(item) && validateZoneChangeSource(item),
 	}, ['to'])
 	const validateNaming = object({ type: literal('cardName', 'type', 'tag'), cardTypes: strings }, ['type'])
-	const validateRouting = object({ instructions: value => validateInstructions(value), affectingCard: literal('eventSubject'), subject: isCardReference, resolvingPlayer: literal('eventController', 'selectedOwner', 'self', 'opponent'), repeatFor: literal('startFromMe', 'startFromNext', 'opponents', 'others') })
+	const validateRouting = object({ instructions: value => validateInstructions(value), affectingCard: literal('eventSubject'), subject: isCardReference, resolvingPlayer: literal('eventController', 'eventPlayer', 'selectedOwner', 'self', 'opponent'), repeatFor: literal('startFromMe', 'startFromNext', 'opponents', 'others') })
 	const validateVictoryScoreRequirement = object({ amount: number, target: playerTarget, not: trueValue }, ['amount'])
 	const validateSourceAreaRequirement = object({ area: locationArea, not: trueValue }, ['area'])
 	const validateEffectRequirements = object({

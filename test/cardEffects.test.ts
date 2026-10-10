@@ -747,3 +747,9 @@ test('recursive condition groups reject cycles with the child path and allow sha
 	const child = { type: 'amount', amount: { stat: 'buff', card: 'recipient' } }
 	assert.equal(validators.isConditional({ type: 'all', conditional: [child, child] }), true)
 })
+
+test('routing can resolve for the event player', () => {
+	const validators = createCardEffectValidators(cardEffectVocabulary)
+	assert.equal(validators.isEffect({ addPoints: 1, routing: { resolvingPlayer: 'eventPlayer' } }), true)
+	assert.equal(validators.isEffect({ addPoints: 1, routing: { resolvingPlayer: 'turnPlayer' } }), false)
+})
