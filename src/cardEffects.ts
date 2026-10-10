@@ -403,7 +403,7 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 	const validateSpawn = object({ name: string, baseStrength: count, to: item => locationArea(item) || item === 'lastLocation', count: item => countAmount(item) || item === 'eachOpponentLocation', statuses: array(literal('ready', 'temporary')) }, ['name'])
 	const validateCopySelection = object({ source: isSingleCardReference, targets: isCardReference, duration: literal('attached') }, ['source', 'targets'])
 	const validateCopyPlay = object({ mode: literal('copy'), subject: isSingleCardReference, copies: countAmount }, ['mode', 'subject', 'copies'])
-	const validateReplay = object({ mode: literal('replay'), subject: isSingleCardReference, costs: isCostContainer, sourceArea: locationArea }, ['mode', 'subject'])
+	const validateReplay = object({ mode: literal('replay'), subject: isSingleCardReference, costs: isCostContainer, sourceArea: locationArea, exit: literal('banished') }, ['mode', 'subject'])
 	const validatePlayDestination = object({ area: locationArea, cardTypes: typeFilter }, ['area'])
 	const validatePlayPaymentOptions = object({ waive: array(costType), costReduction: array(item => isCost(item)) })
 	const validatePlayPayment = (value: unknown) => boolean(value) || record(value) && validatePlayPaymentOptions(value) && (value.waive !== undefined || value.costReduction !== undefined || invalid('waive or costReduction'))

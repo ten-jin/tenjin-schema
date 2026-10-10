@@ -122,6 +122,7 @@ export interface AbilitySet<V extends CardEffectVocabulary = DefaultVocabulary, 
 }
 export interface CardEffectData<V extends CardEffectVocabulary = DefaultVocabulary, Effect = EffectInstance<V>> extends AbilitySet<V, Effect> {
 	/** Named pools chosen from card definitions before play, owned by the declaring player. */
+	/** `count` is the most definitions the player may choose; they may choose fewer. */
 	setupChoices?: Record<string, { query: CardSetQuery<V>; count: number; distinctNames?: true; excludeStarting?: true; ifInDeck?: CardSetQuery<V> }>
 }
 export type EffectPlayerReference<V extends CardEffectVocabulary = DefaultVocabulary> = PlayerTarget<V> | { ownerOf: EffectSingleCardReference<V> } | { controllerOf: EffectSingleCardReference<V> }
@@ -446,6 +447,8 @@ export type EffectPlay<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	mode: 'replay'
 	costs?: EffectCostContainer<V>
 	sourceArea?: LocationArea<V>
+	/** Where the replayed card goes when it would leave the chain or board; omitted is normal. */
+	exit?: 'banished'
 } | {
 	subject: EffectSingleCardReference<V>
 	mode: 'copy'
