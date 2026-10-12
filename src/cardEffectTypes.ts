@@ -391,8 +391,8 @@ export interface EffectRouting<V extends CardEffectVocabulary = DefaultVocabular
 	instructions?: Partial<Record<EffectInstructionKind<V>, EffectCardReference<V>>>
 	affectingCard?: 'eventSubject'
 	subject?: EffectCardReference<V>
-	/** `eventPlayer` is the player the triggering event is about: its performer, or the turn player for phase events. */
-	resolvingPlayer?: 'eventController' | 'eventPlayer' | 'selectedOwner' | 'self' | 'opponent'
+	/** `eventPlayer` is the player the triggering event is about: its performer, or the turn player for phase events. `selectedOwner` and `selectedController` are the owner and controller of the first card of the previous selection. */
+	resolvingPlayer?: 'eventController' | 'eventPlayer' | 'selectedController' | 'selectedOwner' | 'self' | 'opponent'
 	repeatFor?: RepeatPlayerRef
 }
 export interface EffectSequence<V extends CardEffectVocabulary = DefaultVocabulary> {

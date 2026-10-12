@@ -753,3 +753,8 @@ test('routing can resolve for the event player', () => {
 	assert.equal(validators.isEffect({ addPoints: 1, routing: { resolvingPlayer: 'eventPlayer' } }), true)
 	assert.equal(validators.isEffect({ addPoints: 1, routing: { resolvingPlayer: 'turnPlayer' } }), false)
 })
+
+test('routing can resolve for the controller of the previous selection', () => {
+	const validators = createCardEffectValidators(cardEffectVocabulary)
+	assert.equal(validators.isEffect({ addPoints: 1, routing: { resolvingPlayer: 'selectedController' } }), true)
+})
