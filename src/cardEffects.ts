@@ -126,7 +126,7 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 		return {
 			costs: array(value => isCost(value, resolved)), timing: literal('resolution'), kind: literal('payment'), cardTypes: strings,
 			conditionals: array(isConditional), phase: value => oneOf(value, TURN_STEPS), groupNames: strings,
-			playPermissionCharacteristics: strings, chooseOne: trueValue, optionality: literal('optional', 'replaces'),
+			playPermissionCharacteristics: strings, costSource: literal('cardPlay', 'activatedAbility', 'effect'), chooseOne: trueValue, optionality: literal('optional', 'replaces'),
 			facedown: trueValue, selectArea: locationArea, costReduction: array(value => isCost(value, resolved)),
 		}
 	}

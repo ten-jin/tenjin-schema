@@ -21,3 +21,10 @@ test('draw and discard events must match their destinations', () => {
  for (const change of [{ to: 'hand', event: 'draw' }, { to: 'hand', event: 'draw', source: { query: { source: { cards: 'selection' } } } }, { to: 'discard', event: 'discard' }]) assert.equal(validators.isCardEffect({ effects: { played: [{ effect: { zoneChanges: [change] } }] } }), true)
  for (const change of [{ to: 'hand', event: 'discard' }, { to: 'discard', event: 'draw' }, { to: 'hand', event: 'draw', timing: 'before' }]) assert.equal(validators.isCardEffect({ effects: { played: [{ effect: { zoneChanges: [change] } }] } }), false)
 })
+test('produced resources may restrict the payment source they pay for', () => {
+	const gain = (costSource?: string) => ({ activatableEffects: [{ taps: true, effect: { addResource: { costs: [{ type: 'manaRecycle', amount: 1 }], cardTypes: ['unit', 'gear'], ...(costSource ? { costSource } : {}) } } }] })
+	assert.equal(validators.isCardEffect(gain()), true)
+	assert.equal(validators.isCardEffect(gain('cardPlay')), true)
+	assert.equal(validators.isCardEffect(gain('activatedAbility')), true)
+	assert.equal(validators.isCardEffect(gain('anyCost')), false)
+})

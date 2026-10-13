@@ -35,6 +35,7 @@ export interface EffectConditions<V extends CardEffectVocabulary = DefaultVocabu
 	targetFromArea?: LocationArea<V>
 	targetNotFromArea?: LocationArea<V>
 	costSource?: CostSourceType
+	/** The source's side in the combat; on `conquered`, matches only a conquest won by that side's combat (`attacking`: after an attack). */
 	combatRole?: CombatRole
 	eventSourceQuery?: CardSetQuery<V>
 	costsThreshold?: EffectCostContainer<V>
@@ -303,6 +304,8 @@ export interface EffectCostContainer<V extends CardEffectVocabulary = DefaultVoc
 	phase?: TurnStepState<V>
 	groupNames?: string[]
 	playPermissionCharacteristics?: PlayPermissionCharacteristic[]
+	/** On a produced resource, the only payment source it may pay for; omitted admits card plays and activated abilities. */
+	costSource?: CostSourceType
 	chooseOne?: true
 	optionality?: CostOptionality
 	facedown?: true
