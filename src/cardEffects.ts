@@ -375,7 +375,7 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 	const validateVictoryScoreRequirement = object({ amount: number, target: playerTarget, not: trueValue }, ['amount'])
 	const validateSourceAreaRequirement = object({ area: locationArea, not: trueValue }, ['area'])
 	const validateEffectRequirements = object({
-		additionalCostPaid: trueValue, phase: value => oneOf(value, TURN_STEPS), turnPlayer: playerTarget,
+		timing: literal('resolution'), additionalCostPaid: trueValue, phase: value => oneOf(value, TURN_STEPS), turnPlayer: playerTarget,
 		victoryScore: item => record(item) && validateVictoryScoreRequirement(item),
 		sourceArea: item => record(item) && validateSourceAreaRequirement(item), cards: isRequirements,
 	})

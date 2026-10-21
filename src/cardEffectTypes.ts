@@ -566,6 +566,8 @@ export interface EffectInstance<V extends CardEffectVocabulary = DefaultVocabula
 	/** Add inline or copied behavior evaluated from each receiving card, with provider provenance and an independent lifetime. */
 	grantAbilities?: AbilityGrant<V>
 	requirements?: {
+		/** Instruction condition checked as the effect resolves; otherwise a triggered ability's requirements belong to its trigger condition. */
+		timing?: 'resolution'
 		additionalCostPaid?: true
 		phase?: TurnStepState<V>
 		turnPlayer?: PlayerTarget<V>
