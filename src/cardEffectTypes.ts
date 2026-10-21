@@ -434,6 +434,8 @@ export type EffectChoice<V extends CardEffectVocabulary = DefaultVocabulary> = {
 export type EffectPlayPayment<V extends CardEffectVocabulary = DefaultVocabulary> = boolean | {
 	waive?: CostType<V>[]
 	costReduction?: EffectCost<V>[]
+	/** Sets the play's total cost to zero, including additional, increased and non-standard costs. */
+	ignoreAll?: true
 }
 export type EffectPlay<V extends CardEffectVocabulary = DefaultVocabulary> = {
 	subject: EffectCardReference<V>

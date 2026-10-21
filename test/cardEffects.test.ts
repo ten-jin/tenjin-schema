@@ -391,8 +391,8 @@ test('distinct type counts compose with ordinary amounts and computed count requ
 })
 
 test('normal play payment policies share configured costs and preserve replay and copy contracts', () => {
-	for (const payment of [true, false, { waive: ['mana'] }, { costReduction: [{ type: 'mana', amount: { stat: 'strength', card: { from: 'previousSelection' }, previous: true } }] }, { waive: ['manaRecycle'], costReduction: [{ type: 'mana', amount: 2, multiplier: { count: 'previousSelection' } }] }]) assert.equal(validators.isEffect({ play: { subject: 'selection', payment, controller: 'owner', destination: 'base' } }), true)
-	for (const payment of ['free', {}, { waive: 'mana' }, { waive: ['unknown'] }, { costReduction: [{ type: 'unknown', amount: 1 }] }, { costReduction: [{ type: 'mana', amount: { stat: 'unknown', card: 'recipient' } }] }]) assert.equal(validators.isEffect({ play: { subject: 'selection', payment } }), false)
+	for (const payment of [true, false, { waive: ['mana'] }, { costReduction: [{ type: 'mana', amount: { stat: 'strength', card: { from: 'previousSelection' }, previous: true } }] }, { waive: ['manaRecycle'], costReduction: [{ type: 'mana', amount: 2, multiplier: { count: 'previousSelection' } }] }, { ignoreAll: true }]) assert.equal(validators.isEffect({ play: { subject: 'selection', payment, controller: 'owner', destination: 'base' } }), true)
+	for (const payment of ['free', {}, { waive: 'mana' }, { waive: ['unknown'] }, { costReduction: [{ type: 'unknown', amount: 1 }] }, { costReduction: [{ type: 'mana', amount: { stat: 'unknown', card: 'recipient' } }] }, { ignoreAll: false }, { ignoreAll: true, waive: ['mana'] }]) assert.equal(validators.isEffect({ play: { subject: 'selection', payment } }), false)
 	assert.equal(validators.isEffect({ play: { subject: 'selection' } }), true)
 	assert.equal(validators.isEffect({ play: { mode: 'replay', subject: 'effectTarget', costs: { costs: [{ type: 'manaRecycle', amount: 1 }] } } }), true)
 	assert.equal(validators.isEffect({ play: { mode: 'copy', subject: 'eventSubject', copies: 1 } }), true)

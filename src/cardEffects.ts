@@ -405,8 +405,8 @@ export function createCardEffectValidators<const V extends CardEffectVocabulary>
 	const validateCopyPlay = object({ mode: literal('copy'), subject: isSingleCardReference, copies: countAmount }, ['mode', 'subject', 'copies'])
 	const validateReplay = object({ mode: literal('replay'), subject: isSingleCardReference, costs: isCostContainer, sourceArea: locationArea, exit: literal('banished') }, ['mode', 'subject'])
 	const validatePlayDestination = object({ area: locationArea, cardTypes: typeFilter }, ['area'])
-	const validatePlayPaymentOptions = object({ waive: array(costType), costReduction: array(item => isCost(item)) })
-	const validatePlayPayment = (value: unknown) => boolean(value) || record(value) && validatePlayPaymentOptions(value) && (value.waive !== undefined || value.costReduction !== undefined || invalid('waive or costReduction'))
+	const validatePlayPaymentOptions = object({ waive: array(costType), costReduction: array(item => isCost(item)), ignoreAll: trueValue })
+	const validatePlayPayment = (value: unknown) => boolean(value) || record(value) && validatePlayPaymentOptions(value) && (value.ignoreAll !== undefined ? value.waive === undefined && value.costReduction === undefined || invalid('ignoreAll alone') : value.waive !== undefined || value.costReduction !== undefined || invalid('waive, costReduction or ignoreAll'))
 	const validatePlay = object({ subject: isCardReference, payment: validatePlayPayment, controller: literal('owner'), destinations: array(item => locationArea(item) || item === 'lastLocation'), destination: item => locationArea(item) || item === 'lastLocation' || record(item) && validatePlayDestination(item) }, ['subject'])
 	const costFields = { type: costType, minimumCost: number, matching: strings, conditional: array(isConditional), query: isQuery, multiplier: amount }
 	const validateCost = object({ ...costFields, amount: costAmount }, ['type'])
