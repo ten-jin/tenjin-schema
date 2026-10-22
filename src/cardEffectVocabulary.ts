@@ -1,4 +1,4 @@
-export const CARD_RELATION_TYPES = ['attachedTo', 'banishedWith', 'combatWith', 'chosenBy', 'chooses', 'damagedBy', 'hasAttached', 'replacedBy', 'replaces'] as const
+export const CARD_RELATION_TYPES = ['attachedTo', 'banishedWith', 'combatWith', 'chosenBy', 'chooses', 'damagedBy', 'hasAttached', 'killedBy', 'replacedBy', 'replaces'] as const
 export const PREV_MANA_DAMAGE = { stat: 'mana', card: { from: 'previousSelection' } } as const
 export const REVEALED_FACEDOWN = 'revealedFacedown' as const
 export const CARDS_IN_TRASH = 'cardsInDiscard' as const
